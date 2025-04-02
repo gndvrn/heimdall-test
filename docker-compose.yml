@@ -1,0 +1,92 @@
+services:
+  rabbitmq:
+    container_name: rabbitmq
+    image: rabbitmq:3-alpine
+    ports:
+      - "5672:5672"
+    restart: unless-stopped
+    volumes:
+      - /mnt/data/rabbitmq:/var/lib/rabbitmq
+    networks:
+      polygon-network:
+        aliases:
+          - rabbitmq-host
+    healthcheck:
+      test: ["CMD", "rabbitmqctl", "status"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+
+  heimdalld:
+    container_name: heimdalld
+    image: 0xpolygon/heimdall:0.3.4
+    restart: unless-stopped
+    environment:
+      - HEIMDALL_ETH_RPC_URL=https://polygon-rpc.com  # Для тестовой сети: https://rpc-mumbai.maticvigil.com
+    volumes:
+      - /mnt/data/heimdall/data:/heimdall
+    ports:
+      - "26656:26656"
+      - "26657:26657"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - polygon-network
+    command:
+      - start
+      - --home=/heimdall
+      - --rpc.laddr=tcp://0.0.0.0:26657
+      - --moniker="my-polygon-node"
+
+  heimdallr:
+    container_name: heimdallr
+    image: 0xpolygon/heimdall:0.3.4
+    restart: unless-stopped
+    volumes:
+      - /mnt/data/heimdall/data:/heimdall
+    ports:
+      - "1317:1317"
+    depends_on:
+      - heimdalld
+    networks:
+      - polygon-network
+    command:
+      - rest-server
+      - --home=/heimdall
+      - --node=tcp://heimdalld:26657
+      - --laddr=tcp://0.0.0.0:1317
+      - --chain-id=137
+
+  bridge:
+    container_name: bridge
+    image: 0xpolygon/heimdall:0.3.4
+    restart: unless-stopped
+    environment:
+      - HEIMDALL_AMQP_URL=amqp://guest:guest@rabbitmq-host:5672
+      - HEIMDALL_HEIMDALL_REST_SERVER=http://heimdallr:1317
+      - HEIMDALL_TENDERMINT_RPC_URL=http://heimdalld:26657
+    volumes:
+      - /mnt/data/heimdall/data:/heimdall
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      heimdalld:
+        condition: service_started
+      heimdallr:
+        condition: service_started
+    networks:
+      - polygon-network
+    command:
+      - bridge
+      - start
+      - --all
+      - --home=/heimdall
+
+
+networks:
+  polygon-network:
+    driver: bridge
+    driver_opts:
+      com.docker.network.bridge.enable_icc: "true"
