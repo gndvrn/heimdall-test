@@ -20,7 +20,7 @@ services:
 
   heimdalld:
     container_name: heimdalld
-    image: 0xpolygon/heimdall:0.3.4
+    image: 0xpolygon/heimdall:latest
     restart: unless-stopped
     environment:
       - HEIMDALL_ETH_RPC_URL=https://polygon-rpc.com  # Для тестовой сети: https://rpc-mumbai.maticvigil.com
@@ -42,7 +42,7 @@ services:
 
   heimdallr:
     container_name: heimdallr
-    image: 0xpolygon/heimdall:0.3.4
+    image: 0xpolygon/heimdall:latest
     restart: unless-stopped
     volumes:
       - /mnt/data/heimdall/data:/heimdall
@@ -61,7 +61,7 @@ services:
 
   bridge:
     container_name: bridge
-    image: 0xpolygon/heimdall:0.3.4
+    image: 0xpolygon/heimdall:latest
     restart: unless-stopped
     environment:
       - HEIMDALL_AMQP_URL=amqp://guest:guest@rabbitmq-host:5672
